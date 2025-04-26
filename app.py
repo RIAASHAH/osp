@@ -3,8 +3,7 @@ import pandas as pd
 import openai
 
 # Set your OpenAI API key here
-openai.api_key = st.secrets["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"]
-
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 st.set_page_config(page_title="SDR Calls Summary Dashboard", layout="wide")
 
 st.title("📞 SDR Calls Summary Dashboard")
