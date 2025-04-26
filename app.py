@@ -1,7 +1,11 @@
+# Imports
 import streamlit as st
 import pandas as pd
 import torch
 from transformers import pipeline
+
+# MUST BE FIRST Streamlit command
+st.set_page_config(page_title="📞 SDR Calls Summary Dashboard", layout="wide")
 
 # Load summarization model
 @st.cache_resource
@@ -11,21 +15,22 @@ def load_model():
 
 summarizer = load_model()
 
-st.set_page_config(page_title="📞 SDR Calls Summary Dashboard", layout="wide")
-st.title("📞 SDR Calls Summary Dashboard (Free, No OpenAI!)")
+# Streamlit app starts
+st.title("📞 SDR Calls Summary Dashboard (Free, No OpenAI Needed!)")
 
 uploaded_file = st.file_uploader("Upload your Nooks CSV file", type=["csv"])
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
+    # Check if required columns exist
     if {'User Name', 'Prospect Name', 'Call Notes'}.issubset(df.columns):
-        st.success("File successfully uploaded and processed!")
+        st.success("✅ File successfully uploaded and processed!")
 
         grouped = df.groupby(['User Name', 'Prospect Name'])
         summaries = []
 
-        with st.spinner("Analyzing calls... please wait"):
+        with st.spinner("🔎 Analyzing calls... please wait a moment"):
             for (user_name, client_name), group in grouped:
                 all_notes = " ".join(group['Call Notes'].dropna().astype(str))
 
@@ -33,7 +38,7 @@ if uploaded_file:
                     continue
 
                 try:
-                    short_text = all_notes[:3000]  # Limit to avoid memory errors
+                    short_text = all_notes[:3000]  # Limit text if very long
                     result = summarizer(short_text, max_length=150, min_length=50, do_sample=False)
 
                     summary = result[0]['summary_text']
@@ -46,10 +51,12 @@ if uploaded_file:
                     })
 
                 except Exception as e:
-                    st.error(f"Error analyzing {user_name} - {client_name}: {e}")
+                    st.error(f"⚠️ Error analyzing {user_name} - {client_name}: {e}")
 
+        # Sort by User Name
         summaries = sorted(summaries, key=lambda x: x['User Name'])
 
+        # Display summaries
         for sdr_summary in summaries:
             st.markdown(f"### 📋 {sdr_summary['User Name']}")
             st.markdown(f"**Client:** {sdr_summary['Client']}")
@@ -57,6 +64,7 @@ if uploaded_file:
             st.markdown("📝 **Summary:**")
             st.success(sdr_summary['Summary'])
 
+        # Downloadable full report
         if summaries:
             report_text = ""
             for s in summaries:
@@ -68,7 +76,8 @@ if uploaded_file:
                 file_name="sdr_call_summary.txt",
                 mime="text/plain"
             )
+
     else:
-        st.error("Your file must have 'User Name', 'Prospect Name', and 'Call Notes' columns.")
+        st.error("❌ Your file must have 'User Name', 'Prospect Name', and 'Call Notes' columns.")
 else:
-    st.info("Please upload a CSV file to get started.")
+    st.info("📂 Please upload a CSV file to get started.")
