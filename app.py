@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import openai
 
-# Set your OpenAI API key here
 openai.api_key = st.secrets["OPENAI_API_KEY"]
+client = openai.OpenAI()
+
 st.set_page_config(page_title="SDR Calls Summary Dashboard", layout="wide")
 
 st.title("📞 SDR Calls Summary Dashboard")
@@ -13,11 +14,9 @@ uploaded_file = st.file_uploader("Upload your Nooks CSV file", type=["csv"])
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
-    # Ensure the necessary columns are present
     if {'User Name', 'Prospect Name', 'Call Notes'}.issubset(df.columns):
         st.success("File successfully uploaded and processed!")
 
-        # Group by SDR Name and Client
         grouped = df.groupby(['User Name', 'Prospect Name'])
 
         summaries = []
@@ -27,7 +26,7 @@ if uploaded_file:
                 all_notes = " ".join(group['Call Notes'].dropna().astype(str))
 
                 if all_notes.strip() == "":
-                    continue  # Skip if no notes
+                    continue
 
                 prompt = f"""
 You are a sales coach. Summarize the behavior of the SDR across multiple calls for the client below.
@@ -46,8 +45,8 @@ Please return:
 """
 
                 try:
-                    response = openai.ChatCompletion.create(
-                        model="gpt-4-turbo",
+                    response = client.chat.completions.create(
+                        model="gpt-4o",  # or "gpt-4-turbo"
                         messages=[
                             {"role": "system", "content": "You are a professional sales performance analyst."},
                             {"role": "user", "content": prompt}
@@ -56,7 +55,7 @@ Please return:
                         max_tokens=600
                     )
 
-                    summary = response['choices'][0]['message']['content'].strip()
+                    summary = response.choices[0].message.content.strip()
 
                     summaries.append({
                         'User Name': user_name,
@@ -68,10 +67,8 @@ Please return:
                 except Exception as e:
                     st.error(f"Error analyzing {user_name} - {client_name}: {e}")
 
-        # Sort summaries by User Name
         summaries = sorted(summaries, key=lambda x: x['User Name'])
 
-        # Display nicely
         for sdr_summary in summaries:
             st.markdown(f"### 📋 {sdr_summary['User Name']}")
             st.markdown(f"**Client:** {sdr_summary['Client']}")
@@ -79,7 +76,6 @@ Please return:
             st.markdown("📝 **Summary:**")
             st.info(sdr_summary['Summary'])
 
-        # Download report
         if summaries:
             report_text = ""
             for s in summaries:
